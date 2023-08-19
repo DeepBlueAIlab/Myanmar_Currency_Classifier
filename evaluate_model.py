@@ -1,79 +1,74 @@
-import numpy as np
 import os
 import cv2
-import glob
+import numpy as np
 import tensorflow as tf
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, BatchNormalization
-from tensorflow.keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
-from collections import Counter
-from sklearn.metrics import classification_report
+from tensorflow.keras.models import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout
 from tensorflow.keras.callbacks import EarlyStopping, ModelCheckpoint
+from tensorflow.keras.utils import to_categorical
 
-X = []
-Y = []
+# Constants
+IMG_SIZE = 64
+EPOCHS = 15
+BATCH_SIZE = 32
 
-paths = [
-    ('Images/100', 0),
-    ('Images/200', 1),
-    ('Images/50', 2),
-    ('Images/500', 3),
-    ('Images/1000', 4),
-    ('Images/5000', 5),
-    ('Images/10000', 6)
-]
+# Loading data
+base_dir = os.path.dirname(os.path.abspath(__file__))
+image_dir = os.path.join(base_dir, 'Images')
 
-for path, label in paths:
-    for filename in glob.glob(os.path.join(path, "*.jpg")):
-        img = cv2.imread(filename, cv2.IMREAD_COLOR)
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        X.append(img)
-        Y.append(label)
+data = []
+labels = []
 
-shapes = [img.shape for img in X]
-most_common_shape = Counter(shapes).most_common(1)[0][0]
-X_resized = [cv2.resize(img, (most_common_shape[1], most_common_shape[0])) for img in X]
+for label, currency_folder in enumerate(os.listdir(image_dir)):
+    path = os.path.join(image_dir, currency_folder)
+    for img in os.listdir(path):
+        try:
+            image = cv2.imread(os.path.join(path, img))
+            resized_image = cv2.resize(image, (IMG_SIZE, IMG_SIZE))
+            data.append(resized_image)
+            labels.append(label)
+        except Exception as e:
+            print(f"Error reading file {img} : {e}")
 
-X = np.array(X_resized) / 255.0
-Y = to_categorical(Y)
+data = np.array(data, dtype=np.float32) / 255.0
+labels = np.array(labels)
 
-X_train, X_temp, y_train, y_temp = train_test_split(X, Y, test_size=0.3)
-X_val, X_test, y_val, y_test = train_test_split(X_temp, y_temp, test_size=0.5)
+# Split the data into training and validation sets
+X_train, X_val, y_train, y_val = train_test_split(data, labels, test_size=0.2, random_state=42)
 
-model = Sequential()
-model.add(Conv2D(32, (3, 3), activation='relu', input_shape=X_train.shape[1:]))
-model.add(BatchNormalization())
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.2))
-model.add(Conv2D(64, (3, 3), activation='relu'))
-model.add(BatchNormalization())
-model.add(MaxPooling2D(pool_size=(2, 2)))
-model.add(Dropout(0.3))
-model.add(Flatten())
-model.add(Dense(128, activation='relu'))
-model.add(BatchNormalization())
-model.add(Dropout(0.5))
-model.add(Dense(len(paths), activation='softmax'))
+# One-hot encoding the labels
+y_train = to_categorical(y_train, num_classes=7)
+y_val = to_categorical(y_val, num_classes=7)
 
-model.compile(loss='categorical_crossentropy', optimizer='adam', metrics=['accuracy'])
+# Building the model
+model = Sequential([
+    Conv2D(32, (3, 3), activation='relu', input_shape=(IMG_SIZE, IMG_SIZE, 3)),
+    MaxPooling2D(2, 2),
+    Conv2D(64, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    Conv2D(128, (3, 3), activation='relu'),
+    MaxPooling2D(2, 2),
+    Flatten(),
+    Dense(512, activation='relu'),
+    Dropout(0.5),
+    Dense(7, activation='softmax')
+])
 
-early_stopping = EarlyStopping(monitor='val_loss', patience=10, restore_best_weights=True)
-model_checkpoint = ModelCheckpoint("best_model_myanmar_currency.h5", save_best_only=True, monitor='val_loss')
+# Compiling the model
+model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
 
-history = model.fit(X_train, y_train, epochs=15, batch_size=32, validation_data=(X_val, y_val), callbacks=[early_stopping, model_checkpoint])
+# Callbacks
+early_stopping = EarlyStopping(monitor='val_loss', patience=3)
+model_checkpoint = ModelCheckpoint('best_model.h5', monitor='val_loss', save_best_only=True)
 
-with open('training_logs_myanmar_currency.txt', 'w') as log_file:
-    for epoch, (loss, acc, val_loss, val_acc) in enumerate(zip(history.history['loss'], history.history['accuracy'], history.history['val_loss'], history.history['val_accuracy'])):
-        log_file.write(f"Epoch {epoch+1} - loss: {loss:.4f}, accuracy: {acc:.4f}, val_loss: {val_loss:.4f}, val_accuracy: {val_acc:.4f}\n")
+# Train the model
+print("X_train shape:", X_train.shape)
+print("y_train shape:", y_train.shape)
+print("X_val shape:", X_val.shape)
+print("y_val shape:", y_val.shape)
 
-loss, accuracy = model.evaluate(X_test, y_test)
-print(f"Test Accuracy: {accuracy*100:.2f}%")
+history = model.fit(X_train, y_train, epochs=EPOCHS, batch_size=BATCH_SIZE, validation_data=(X_val, y_val), callbacks=[early_stopping, model_checkpoint])
 
-y_pred = model.predict(X_test)
-y_pred_classes = np.argmax(y_pred, axis=1)
-y_true_classes = np.argmax(y_test, axis=1)
-
-report = classification_report(y_true_classes, y_pred_classes, target_names=[path[0].split('/')[-1] for path in paths])
-with open('classification_report_myanmar_currency.txt', 'w') as report_file:
-    report_file.write(report)
+# Optionally, you can save the entire model after training
+# model.save("currency_classifier.h5")
