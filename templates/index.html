@@ -1,15 +1,19 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Myanmar Currency Classifier</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css">
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </head>
+
 <body style="background-color: #404040;">
     <nav class="navbar container-fluid sticky-top" style="background-color: #2f2626;">
         <span class="navbar-brand text-light">Myanmar Currency Classifier</span>
     </nav>
+    
     <div class="container mt-5 pb-5">
+        
         <div class="mt-5">
             <h2 class="text-light">Upload Image</h2>
             <form action="/" method="post" enctype="multipart/form-data">
@@ -21,24 +25,26 @@
                 </div>
             </form>
             {% if request.method == 'POST' %}
-            <div class="mt-4 d-flex" id="image-prediction">
+            <div class="mt-4" id="image-prediction">
                 <img src="{{ uploaded_image }}" class="img-fluid" width="400">
-                <h3 class="text-light mt-3 align-self-center p-5">{{ label }} with confidence: {{ confidence }}</h3>
+                <div class="mt-4">
+                    <h3 class="text-light">{{ label }} with confidence: {{ confidence }}</h3>
+                    <button class="btn btn-danger text-light mt-3" onclick="clearUploadedPrediction()">Remove</button>
+                </div>
             </div>
-            {% endif %}
+            {% endif %}            
         </div>
 
         <div class="mt-5">
             <h2 class="text-light">Webcam Capture</h2>
             <div style="user-select: none;">
-                <button class="btn btn-success btn-lg text-light rounded-pill" id="startBtn"
-                    onclick="startWebcam()">Start</button>
-                <button class="btn btn-danger btn-lg text-light rounded-pill" id="stopBtn" onclick="stopWebcam()"
-                    disabled>Stop</button>
+                <button class="btn btn-success btn-lg text-light rounded-pill" id="startBtn" onclick="startWebcam()">Start</button>
+                <button class="btn btn-danger btn-lg text-light rounded-pill" id="stopBtn" onclick="stopWebcam()" disabled>Stop</button>
             </div>
             <div id="webcam-container" class="mt-4"></div>
-            <div id="webcam-prediction"></div>
+            <div id="webcam-prediction" class="mt-4"></div>
         </div>
     </div>
 </body>
+
 </html>
