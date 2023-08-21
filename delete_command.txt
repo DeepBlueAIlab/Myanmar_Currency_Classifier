@@ -1,0 +1,2 @@
+rm *_mirrored.jpg *rotated_-15.jpg *_rotated_15.jpg *rotated_90.jpg *rotated_180.jpg *rotated_270.jpg
+
